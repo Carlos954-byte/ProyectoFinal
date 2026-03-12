@@ -6,7 +6,13 @@ const router = Router();
 // GET /api/servicios
 router.get('/', async (_req: Request, res: Response) => {
     try {
-        const servicios = await prisma.servicios.findMany();
+        const servicios = await prisma.servicios.findMany({
+            where: {
+                NOT: {
+                    estado: 'eliminado'
+                }
+            }
+        });
         res.json(servicios);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener servicios' });
@@ -72,7 +78,10 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const id_servicio = parseInt(req.params.id as string);
-        await prisma.servicios.delete({ where: { id_servicio } });
+        await prisma.servicios.update({
+            where: { id_servicio },
+            data: { estado: 'eliminado' }
+        });
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar el servicio' });
