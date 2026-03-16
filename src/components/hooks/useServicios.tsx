@@ -27,11 +27,13 @@ export function useServicios() {
     setLoading(true);
     try {
       const data = await apiFetch(`${API_URL}/servicios`);
-      const mapped = (data || []).map((s: any) => ({
-        ...s,
-        id: s.id_servicio,
-        nombre: s.nombre_servicio
-      }));
+      const mapped = (data || [])
+        .filter((s: any) => s.estado !== 'eliminado') // Excluir servicios eliminados
+        .map((s: any) => ({
+          ...s,
+          id: s.id_servicio,
+          nombre: s.nombre_servicio
+        }));
       setServicios(mapped);
     } catch (error) {
       console.error('Error al cargar servicios:', error);
@@ -81,7 +83,13 @@ export function useServicios() {
   const eliminarServicio = useCallback(async (id: number) => {
     setLoading(true);
     try {
-      await apiFetch(`${API_URL}/servicios/${id}`, { method: 'DELETE' });
+      // Usar PUT para marcar como 'eliminado' (soft delete) en lugar de DELETE
+      // Esto evita errores de llave foránea en la base de datos
+      await apiFetch(`${API_URL}/servicios/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'eliminado' }),
+      });
       setServicios(prev => prev.filter(s => s.id_servicio !== id));
       return { success: true };
     } catch (error: any) {
@@ -103,8 +111,7 @@ export function useServicios() {
 
     return servicios
       .filter(s =>
-        s.nombre_servicio?.toLowerCase().includes(q) ||
-        s.descripcion?.toLowerCase().includes(q)
+        s.nombre_servicio?.toLowerCase().startsWith(q)
       )
       .map(mapService);
   }, [servicios]);
@@ -113,7 +120,7 @@ export function useServicios() {
     return {
       totalServicios: servicios.length,
       serviciosActivos: servicios.length, // Placeholder logic
-      ingresosPotenciales: servicios.reduce((acc, s) => acc + (s.precio || 0), 0)
+      ingresosPotenciales: servicios.reduce((acc, s) => acc + Number(s.precio || 0), 0)
     };
   }, [servicios]);
 

@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ShoppingCart, Calendar, User, DollarSign, Stethoscope, Trash2 } from 'lucide-react';
+import { ShoppingCart, Calendar, User, DollarSign, Stethoscope, Trash2, Search } from 'lucide-react';
 import { Venta, VentaServicio } from '../hooks/useVentas';
 import { useClientes } from '../hooks/useClientes';
 import { useServicios } from '../hooks/useServicios';
@@ -29,6 +29,11 @@ export function VentaModal({ isOpen, onClose, onSubmit, venta, loading, readOnly
     venta_servicios: [] as { id_servicio: number; cantidad: number; precio_unitario: number }[]
   });
 
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [clientesEncontrados, setClientesEncontrados] = useState<any[]>([]);
+  const [mostrarResultados, setMostrarResultados] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<any | null>(null);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -50,16 +55,30 @@ export function VentaModal({ isOpen, onClose, onSubmit, venta, loading, readOnly
         total: venta.total || 0,
         venta_servicios: serviciosCargados
       });
+
+      // Set initial client selection for edit/read-only mode
+      if (venta.cliente) {
+        setClienteSeleccionado(venta.cliente);
+        setBusquedaCliente(venta.cliente.cedula || venta.cliente.nombre || '');
+      } else {
+        const c = clientes.find(cl => cl.id_cliente === venta.id_cliente);
+        if (c) {
+          setClienteSeleccionado(c);
+          setBusquedaCliente(c.cedula || c.nombre || '');
+        }
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         fecha: new Date().toISOString().split('T')[0],
-        id_cliente: prev.id_cliente || '', // Preservar selección si ya existe
+        id_cliente: prev.id_cliente || '',
         venta_servicios: prev.venta_servicios.length > 0 ? prev.venta_servicios : []
       }));
+      setClienteSeleccionado(null);
+      setBusquedaCliente('');
     }
     setErrors({});
-  }, [venta, isOpen]); // Quitado 'servicios' para evitar resets innecesarios
+  }, [venta, isOpen, clientes]);
 
   // Resetear formulario al abrir para nueva venta
   useEffect(() => {
@@ -107,6 +126,37 @@ export function VentaModal({ isOpen, onClose, onSubmit, venta, loading, readOnly
 
     const result = await onSubmit(apiData);
     if (result.success) onClose();
+  };
+
+  const handleBusquedaCliente = (valor: string) => {
+    setBusquedaCliente(valor);
+    if (valor.trim().length > 0) {
+      const matches = clientes.filter(c =>
+        (c.cedula || '').toLowerCase().startsWith(valor.toLowerCase()) ||
+        (c.nombre || '').toLowerCase().includes(valor.toLowerCase())
+      );
+      setClientesEncontrados(matches);
+      setMostrarResultados(true);
+
+      // Si hay un match exacto por cédula, seleccionarlo automáticamente
+      const matchExacto = clientes.find(c => c.cedula === valor);
+      if (matchExacto) {
+        seleccionarCliente(matchExacto);
+      }
+    } else {
+      setClientesEncontrados([]);
+      setMostrarResultados(false);
+      setClienteSeleccionado(null);
+      setFormData(prev => ({ ...prev, id_cliente: '' }));
+    }
+  };
+
+  const seleccionarCliente = (cliente: any) => {
+    setClienteSeleccionado(cliente);
+    setBusquedaCliente(cliente.cedula || cliente.nombre);
+    setFormData(prev => ({ ...prev, id_cliente: cliente.id_cliente.toString() }));
+    setMostrarResultados(false);
+    if (errors.id_cliente) setErrors(prev => ({ ...prev, id_cliente: '' }));
   };
 
   const handleChange = (field: string, value: any) => {
@@ -165,20 +215,51 @@ export function VentaModal({ isOpen, onClose, onSubmit, venta, loading, readOnly
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Cliente */}
-            <div className="space-y-2">
-              <Label className="text-dark-primary flex items-center gap-1.5"><User className="w-4 h-4 text-blue-400" />Cliente *</Label>
-              <Select value={formData.id_cliente} onValueChange={(val: string) => handleChange('id_cliente', val)} disabled={readOnly}>
-                <SelectTrigger className="bg-dark-hover border-dark-color text-dark-primary h-10">
-                  <SelectValue placeholder="Seleccionar cliente..." />
-                </SelectTrigger>
-                <SelectContent className="bg-dark-card border-dark-color">
-                  {clientes.map(c => (
-                    <SelectItem key={c.id_cliente} value={c.id_cliente.toString()}>
-                      {c.nombre}
-                    </SelectItem>
+            <div className="space-y-2 relative">
+              <Label className="text-dark-primary flex items-center gap-1.5"><User className="w-4 h-4 text-blue-400" />Cliente (Cédula o Nombre) *</Label>
+              <div className="relative">
+                <Input
+                  value={busquedaCliente}
+                  onChange={(e) => handleBusquedaCliente(e.target.value)}
+                  placeholder="Ingrese documento o nombre..."
+                  className="bg-dark-hover border-dark-color text-dark-primary h-10 px-4 focus:ring-2 focus:ring-blue-500/20"
+                  onBlur={() => setTimeout(() => setMostrarResultados(false), 200)}
+                  onFocus={() => busquedaCliente && setMostrarResultados(true)}
+                  disabled={readOnly}
+                />
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-secondary opacity-50" />
+              </div>
+
+              {mostrarResultados && clientesEncontrados.length > 0 && !readOnly && (
+                <div className="absolute z-[100] w-full mt-1 bg-dark-card border border-dark-color rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+                  {clientesEncontrados.map(cliente => (
+                    <button
+                      key={cliente.id_cliente}
+                      type="button"
+                      className="w-full text-left p-3 hover:bg-blue-500/10 border-b border-dark-color/30 last:border-0 transition-colors group"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        seleccionarCliente(cliente);
+                      }}
+                    >
+                      <p className="text-dark-primary font-bold group-hover:text-blue-400 transition-colors">{cliente.nombre}</p>
+                      <p className="text-[10px] text-dark-secondary uppercase tracking-wider">CC: {cliente.cedula}</p>
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+
+              {clienteSeleccionado && (
+                <div className="mt-2 p-2 bg-blue-500/5 rounded-lg border border-blue-500/20 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <User className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-dark-primary font-bold">{clienteSeleccionado.nombre}</p>
+                    <p className="text-[10px] text-dark-secondary">{clienteSeleccionado.cedula}</p>
+                  </div>
+                </div>
+              )}
               {errors.id_cliente && <p className="text-red-400 text-xs">{errors.id_cliente}</p>}
             </div>
 
