@@ -156,13 +156,13 @@ router.post('/', async (req: Request, res: Response) => {
             }
         });
 
-        // ENVIAR CORREO DE BIENVENIDA AUTOMÁTICO
+        // ENVIAR CORREO DE BIENVENIDA AUTOMÁTICO (No bloqueante para evitar errores de red)
         if (correo) {
-            await sendWelcomeEmail(
+            sendWelcomeEmail(
                 correo,
                 nombre_completo || nombre_usuario,
                 newUser.token_recuperacion || undefined
-            );
+            ).catch(err => console.error('[MAIL-U-ASYNC] Error:', err));
         }
 
 
@@ -383,8 +383,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
             data: { token_recuperacion: codigo }
         });
 
-        // Enviar el correo
-        await sendResetCodeEmail(correo, codigo);
+        // Enviar el correo en segundo plano para evitar fallos por mala conexión
+        sendResetCodeEmail(correo, codigo).catch(err => console.error('[AUTH-ASYNC] Error al enviar código:', err));
 
         res.json({ success: true, message: 'Código enviado al correo médico.' });
     } catch (error) {

@@ -20,7 +20,7 @@ const callBrevoAPI = (data: any) => {
         'accept': 'application/json',
         'api-key': apiKey,
         'content-type': 'application/json',
-        'content-length': Buffer.byteLength(postData) // CORRECCIÓN: Medir en bytes, no en caracteres
+        'content-length': Buffer.byteLength(postData)
       }
     };
 
@@ -47,7 +47,6 @@ export const sendWelcomeEmail = async (email: string, nombre: string, tokenActiv
     console.log(`[MAIL-API] Disparando envío a: ${email}`);
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-
     const activationLink = tokenActivacion
       ? `${frontendUrl}/?mode=activate&email=${encodeURIComponent(email)}&token=${tokenActivacion}`
       : frontendUrl;

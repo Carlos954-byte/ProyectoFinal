@@ -172,7 +172,12 @@ export function EmpleadosPage() {
                                                 </Button>
 
                                                 {/* No permitir editar ni borrar al Administrador Maestro desde la lista general */}
-                                                {empleado.cargo?.toLowerCase() !== 'administrador' ? (
+                                                {(empleado.correo === 'josephballestas10@gmail.com' || empleado.cedula === '1001780874') ? (
+                                                    <div className="flex items-center gap-1 px-2 py-1 bg-dark-table-hover rounded border border-dark-color opacity-60">
+                                                        <Shield className="w-3 h-3 text-blue-400" />
+                                                        <span className="text-[10px] font-bold text-dark-secondary uppercase">Protegido</span>
+                                                    </div>
+                                                ) : (
                                                     <>
                                                         <Button
                                                             onClick={() => abrirEmpleadoModal(empleado)}
@@ -193,11 +198,6 @@ export function EmpleadosPage() {
                                                             <Trash2 className="w-4 h-4" />
                                                         </Button>
                                                     </>
-                                                ) : (
-                                                    <div className="flex items-center gap-1 px-2 py-1 bg-dark-table-hover rounded border border-dark-color opacity-60">
-                                                        <Shield className="w-3 h-3 text-blue-400" />
-                                                        <span className="text-[10px] font-bold text-dark-secondary uppercase">Protegido</span>
-                                                    </div>
                                                 )}
                                             </div>
                                         </TableCell>

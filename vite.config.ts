@@ -26,9 +26,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'https://proyectofinal-production-2000.up.railway.app',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: false,
       },
     },
   },

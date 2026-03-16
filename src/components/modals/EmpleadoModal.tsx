@@ -214,11 +214,13 @@ export function EmpleadoModal({ isOpen, onClose, onSubmit, empleado, loading, re
                                     className={`w-full h-10 px-3 py-2 bg-dark-hover border ${errors.cargo ? 'border-red-500' : 'border-dark-color'} rounded-md text-sm text-dark-primary focus:border-dark-cta outline-none appearance-none ${!formData.cargo && 'text-dark-secondary/70'} ${empleado && (empleado.correo === 'josephballestas10@gmail.com' || empleado.cedula === '1001780874') ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <option value="" disabled>Seleccionar rol</option>
-                                    {roles.map((rol) => (
-                                        <option key={rol.id} value={rol.nombre} className="text-dark-primary">
-                                            {rol.nombre}
-                                        </option>
-                                    ))}
+                                    {roles
+                                        .filter(rol => rol.nombre.toLowerCase() !== 'cliente')
+                                        .map((rol) => (
+                                            <option key={rol.id} value={rol.nombre} className="text-dark-primary">
+                                                {rol.nombre}
+                                            </option>
+                                        ))}
                                 </select>
                                 {errors.cargo && <p className="text-red-400 text-sm">{errors.cargo}</p>}
                             </div>

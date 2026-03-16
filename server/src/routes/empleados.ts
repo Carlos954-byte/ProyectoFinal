@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../prismaClient';
+import { sendWelcomeEmail } from '../services/mail.service';
 
 const router = Router();
 
@@ -75,14 +76,18 @@ router.post('/', async (req: Request, res: Response) => {
                     data: { id_rol: rol.id_rol }
                 });
             } else {
+                // Generar token de activación para que pongan su propia clave
+                const tokenActivacion = Math.random().toString(36).substring(7);
+
                 usuarioVinculado = await tx.usuario.create({
                     data: {
                         nombre_usuario: nombre,
                         correo: correo,
                         cedula: cedula,
-                        contrasena: '$2a$10$76YmPvtHqYp.p/f.wzY.Ou6mR.e1kX.H.r1kX.H.r1kX.H.r1kX.H', // password123
+                        contrasena: '$2a$10$76YmPvtHqYp.p/f.wzY.Ou6mR.e1kX.H.r1kX.H.r1kX.H.r1kX.H', // Temporal
                         id_rol: rol.id_rol,
-                        activo: true
+                        activo: true,
+                        token_recuperacion: tokenActivacion
                     }
                 });
             }
@@ -103,13 +108,22 @@ router.post('/', async (req: Request, res: Response) => {
                 data: { id_empleado: empleadoArr.id_empleado }
             });
 
-            return empleadoArr;
+            return { empleado: empleadoArr, usuario: usuarioVinculado };
         });
 
-        res.status(201).json(nuevoEmpleado);
-    } catch (error) {
+        // ENVIAR CORREO DE BIENVENIDA AUTOMÁTICO - No bloqueamos la respuesta
+        if (nuevoEmpleado.usuario?.token_recuperacion) {
+            sendWelcomeEmail(
+                correo,
+                nombre,
+                nuevoEmpleado.usuario.token_recuperacion
+            ).catch(err => console.error('[MAIL-W-ASYNC] Error:', err));
+        }
+
+        res.status(201).json(nuevoEmpleado.empleado);
+    } catch (error: any) {
         console.error('[EMPLEADOS] ERROR:', error);
-        res.status(500).json({ error: 'Error al crear el empleado' });
+        res.status(500).json({ error: error.message || 'Error al crear el empleado' });
     }
 });
 
@@ -186,13 +200,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
         if (!emp) return res.status(404).json({ error: 'Empleado no encontrado' });
 
         // PROTECCIÓN MAESTRA: No permitir borrar al administrador principal
-        if (emp.cargo?.toLowerCase() === 'administrador') {
+        if (emp.correo === 'josephballestas10@gmail.com' || emp.cedula === '1001780874') {
             return res.status(403).json({ error: 'No se puede eliminar al Administrador Principal del sistema.' });
-        }
-
-        const isAdmin = emp.usuarios.some(u => (u as any).rol?.nombre_rol === 'Administrador');
-        if (isAdmin) {
-            return res.status(403).json({ error: 'Este empleado está vinculado a una cuenta de Administrador Maestro y no puede ser eliminado.' });
         }
 
         await prisma.$transaction(async (tx) => {
@@ -214,21 +223,24 @@ router.delete('/:id', async (req: Request, res: Response) => {
                 where: { id_empleado }
             });
 
-            // 4. Borrar usuarios vinculados (PROTECCIÓN PARA ADMINS)
+            // 4. Gestionar usuarios vinculados
             if (emp.usuarios && emp.usuarios.length > 0) {
                 for (const u of emp.usuarios) {
-                    // Si el usuario es Administrador (rol 7 o por nombre), no lo borramos, solo desvinculamos
                     const userFull = await tx.usuario.findUnique({
                         where: { id_usuario: u.id_usuario },
                         include: { rol: true }
                     });
 
-                    if (userFull?.rol?.nombre_rol === 'Administrador') {
+                    const roleName = (userFull?.rol?.nombre_rol || '').toLowerCase();
+
+                    // Si el usuario es ADMINISTRADOR (cualquier variante), no lo borramos, solo lo desvinculamos
+                    if (roleName.includes('administrador')) {
                         await tx.usuario.update({
                             where: { id_usuario: u.id_usuario },
                             data: { id_empleado: null }
                         });
                     } else {
+                        // Para veterinarios o asistentes, borramos la cuenta de usuario si está vinculada al empleado
                         await tx.usuario.delete({ where: { id_usuario: u.id_usuario } });
                     }
                 }
@@ -241,9 +253,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
         });
 
         res.status(204).send();
-    } catch (error) {
+    } catch (error: any) {
         console.error('[EMPLEADOS] DELETE ERROR:', error);
-        res.status(500).json({ error: 'Error al eliminar el empleado' });
+        res.status(500).json({ error: error.message || 'Error al eliminar el empleado' });
     }
 });
 

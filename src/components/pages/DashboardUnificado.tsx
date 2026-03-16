@@ -136,22 +136,6 @@ export function DashboardUnificado({ onNavigate }: { onNavigate?: (page: string)
         </div>
         <div className="flex items-center space-x-3">
           {loading && <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />}
-          <select
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-            className="px-3 py-2 bg-dark-hover border border-dark-color rounded-lg text-dark-primary focus:border-dark-cta focus:outline-none"
-          >
-            <option value="1d">Hoy</option>
-            <option value="7d">Última semana</option>
-            <option value="1m">Último mes</option>
-            <option value="3m">Últimos 3 meses</option>
-            <option value="6m">Últimos 6 meses</option>
-            <option value="1y">Último año</option>
-          </select>
-          <Button className="dark-button-primary gap-2">
-            <Download className="w-4 h-4" />
-            Exportar Reporte
-          </Button>
         </div>
       </header>
 
@@ -200,8 +184,8 @@ export function DashboardUnificado({ onNavigate }: { onNavigate?: (page: string)
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold text-dark-primary mb-1">${Math.round(metrics.ticketPromedio)}</h3>
-                    <p className="text-sm font-medium text-dark-secondary">Ticket Promedio</p>
+                    <h3 className="text-3xl font-bold text-dark-primary mb-1">${metrics.ventasTotal.toLocaleString('es-CO')}</h3>
+                    <p className="text-sm font-medium text-dark-secondary">Ventas Totales</p>
                   </div>
                 </div>
               </div>
